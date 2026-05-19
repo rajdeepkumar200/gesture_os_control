@@ -1,0 +1,32 @@
+# GestureOS Pro - Python dependencies
+# Tested with Python 3.10 - 3.11 on Windows
+
+# GUI
+PySide6>=6.6.0
+
+# Computer Vision
+opencv-python>=4.8.0
+# NOTE: MediaPipe >=0.10.30 removed the legacy ``mediapipe.solutions``
+# API used by this app. Pin to a version that still ships it.
+mediapipe>=0.10.9,<0.10.21
+numpy>=1.24.0,<2.0.0
+
+# OS Automation
+PyAutoGUI>=0.9.54
+pynput>=1.7.6
+keyboard>=0.13.5
+mouse>=0.7.1
+pywin32>=306; sys_platform == 'win32'
+
+# Configuration / utilities
+PyYAML>=6.0.1
+
+# Audio feedback (cross-platform safe; optional)
+playsound==1.2.2
+
+# Testing
+pytest>=7.4.0
+pytest-mock>=3.12.0
+
+# Packaging
+pyinstaller>=6.3.0

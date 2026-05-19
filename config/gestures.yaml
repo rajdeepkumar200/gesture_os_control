@@ -1,0 +1,51 @@
+gestures:
+- name: tracking_armed
+  action: noop
+  enabled: true
+  cooldown_ms: 100
+  description: Palm wave (5 s) -- tracking is now armed.
+- name: tracking_disarmed
+  action: noop
+  enabled: true
+  cooldown_ms: 100
+  description: Palm wave (5 s) -- tracking paused.
+- name: pinch_hold
+  action: click
+  enabled: true
+  cooldown_ms: 800
+  description: Hold thumb + index pinch for 1.5 s -> left click.
+- name: five_finger_pinch_hold
+  action: zoom_out
+  enabled: true
+  cooldown_ms: 350
+  description: All five fingertips clustered for 2 s -> zoom out.
+- name: five_finger_spread
+  action: zoom_in
+  enabled: true
+  cooldown_ms: 600
+  description: Spread fingers from a clustered point -> zoom in.
+- name: fist_slide
+  action: close_window
+  enabled: true
+  cooldown_ms: 1500
+  description: Hold fist 2 s, then slide away -> close active window.
+- name: thumbs_up
+  action: confirm
+  enabled: true
+  cooldown_ms: 800
+  description: Confirm a pending action.
+- name: open_palm
+  action: cancel
+  enabled: true
+  cooldown_ms: 800
+  description: Hold an open palm to cancel a pending action.
+- name: peace
+  action: toggle_keyboard
+  enabled: true
+  cooldown_ms: 1500
+  description: Peace sign toggles the virtual keyboard.
+- name: four_finger_type
+  action: open_search
+  enabled: true
+  cooldown_ms: 1500
+  description: Air-typing motion opens search overlay (disabled by default).

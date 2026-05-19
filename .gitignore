@@ -1,0 +1,41 @@
+# --- Python ----------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+.Python
+
+# --- Virtual environments --------------------------------------------
+.venv/
+venv/
+env/
+ENV/
+
+# --- Test / build artefacts ------------------------------------------
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+build/
+dist/
+*.spec
+
+# --- Application runtime ---------------------------------------------
+logs/
+*.log
+
+# --- IDE / editor -----------------------------------------------------
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+.windsurf/
+
+# --- OS junk ----------------------------------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini

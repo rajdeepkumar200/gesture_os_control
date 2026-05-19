@@ -1,0 +1,48 @@
+app:
+  name: GestureOS Pro
+  theme: dark
+  voice_feedback: false
+  auto_start: false
+camera:
+  index: 0
+  width: 1280
+  height: 720
+  fps: 30
+  mirror: true
+  frame_skip: 0
+hand_tracking:
+  max_num_hands: 2
+  min_detection_confidence: 0.7
+  min_tracking_confidence: 0.6
+  model_complexity: 1
+gestures:
+  enabled: true
+  cooldown_ms: 700
+  smoothing_window: 5
+  pinch_threshold: 0.045
+  open_palm_hold_ms: 1500
+  confirmation_timeout_ms: 4000
+  wave_window_s: 3.0
+  wave_min_amplitude: 0.12
+  wave_min_direction_changes: 3
+  pinch_click_hold_s: 1.5
+  zoom_out_hold_s: 2.0
+  zoom_in_release_window_s: 1.0
+  fist_hold_s: 2.0
+  fist_slide_distance: 0.2
+cursor:
+  enabled: true
+  smoothing: 0.35
+  sensitivity: 1.6
+  point_only: true
+virtual_keyboard:
+  layout: qwerty
+  scale: 1.0
+  opacity: 0.92
+  pinch_threshold: 0.05
+  key_dwell_ms: 250
+logging:
+  level: INFO
+  file: logs/gesture_os_pro.log
+  max_bytes: 1048576
+  backup_count: 5
