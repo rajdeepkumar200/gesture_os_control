@@ -71,6 +71,7 @@ class VirtualKeyboardWindow(QWidget):
         scale: float = 1.0,
         opacity: float = 0.92,
         key_dwell_ms: int = 250,
+        hover_dwell_ms: int = 500,
         parent=None,
     ) -> None:
         super().__init__(parent)
@@ -78,9 +79,11 @@ class VirtualKeyboardWindow(QWidget):
         self.scale = scale
         self._opacity = opacity
         self.key_dwell_ms = key_dwell_ms
+        self.hover_dwell_ms = hover_dwell_ms
 
         self._keys: List[Key] = []
         self._hover_keys: Dict[int, Optional[Key]] = {0: None, 1: None}
+        self._hover_start: Dict[int, Optional[float]] = {0: None, 1: None}
         self._pinching: Dict[int, bool] = {0: False, 1: False}
         self._last_press_at: Dict[str, float] = {}
 
@@ -124,7 +127,11 @@ class VirtualKeyboardWindow(QWidget):
         """Receive normalised (0-1, in *window-local* space) pointer states.
 
         Each tuple = ``(x_norm, y_norm, is_pinching)``.
+        A key is only pressable after the pointer has dwelled on it for
+        ``hover_dwell_ms`` (default 500 ms) to prevent accidental rapid
+        key-hopping.
         """
+        now = time.monotonic()
         new_hover: Dict[int, Optional[Key]] = {0: None, 1: None}
         for i, (nx, ny, _pinch) in enumerate(pointers[:2]):
             px = int(nx * self.width())
@@ -134,12 +141,20 @@ class VirtualKeyboardWindow(QWidget):
                     new_hover[i] = k
                     break
 
-        # Edge-trigger press: pinch transitioned from False -> True over a key.
+        # Reset dwell timer when the hovered key changes.
+        for i in (0, 1):
+            if new_hover.get(i) != self._hover_keys.get(i):
+                self._hover_start[i] = now
+
+        # Edge-trigger press: pinch transitioned from False -> True over a key
+        # that has been hovered for at least hover_dwell_ms.
         for i, (_, _, pinch) in enumerate(pointers[:2]):
             was = self._pinching.get(i, False)
             self._pinching[i] = pinch
             if pinch and not was and new_hover[i] is not None:
-                self._press_key(new_hover[i])
+                started = self._hover_start.get(i)
+                if started is not None and (now - started) * 1000 >= self.hover_dwell_ms:
+                    self._press_key(new_hover[i])
 
         self._hover_keys = new_hover
         self.update()

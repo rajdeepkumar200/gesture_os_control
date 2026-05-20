@@ -200,3 +200,34 @@ def test_thumbs_up_rising_edge(thumbs_up_hand):
     for _ in range(6):
         events.extend(sm.update(g.classify([thumbs_up_hand])))
     assert sum(1 for e in events if e.name == "thumbs_up") == 1
+
+
+def test_clap_detected(open_palm_hand):
+    g = GestureClassifier()
+    # Create a second hand far to the right.
+    right_lms = [Hand(label="Left", score=0.99, landmarks=[Landmark(p.x + 0.5, p.y, p.z) for p in open_palm_hand.landmarks])]
+    right = right_lms[0]
+    # Fill clap history with far-apart hands.
+    for _ in range(12):
+        g.classify([open_palm_hand, right])
+    # Bring hands together.
+    close_right_lms = [Landmark(p.x - 0.4, p.y, p.z) for p in right.landmarks]
+    close_right = Hand(label="Left", score=0.99, landmarks=close_right_lms)
+    frame = g.classify([open_palm_hand, close_right])
+    assert "clap" in frame.labels
+
+
+def test_clap_rising_edge(open_palm_hand):
+    g = GestureClassifier()
+    sm = _fast_sm(start_armed=True, default_cooldown_ms=10_000)
+    right_lms = [Landmark(p.x + 0.5, p.y, p.z) for p in open_palm_hand.landmarks]
+    right = Hand(label="Left", score=0.99, landmarks=right_lms)
+    # Fill history with far-apart hands.
+    for _ in range(12):
+        g.classify([open_palm_hand, right])
+    events = []
+    close_right_lms = [Landmark(p.x - 0.4, p.y, p.z) for p in right_lms]
+    close_right = Hand(label="Left", score=0.99, landmarks=close_right_lms)
+    for _ in range(6):
+        events.extend(sm.update(g.classify([open_palm_hand, close_right])))
+    assert sum(1 for e in events if e.name == "clap") == 1

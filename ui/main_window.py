@@ -35,7 +35,7 @@ from core.action_dispatcher import ActionDispatcher
 from core.camera_manager import CameraManager
 from core.gesture_classifier import GestureClassifier, GestureFrame
 from core.gesture_state_machine import GestureEvent, GestureStateMachine
-from core.hand_tracker import HandTracker
+from core.hand_tracker import HandTracker, INDEX_PIP, INDEX_TIP
 from core.keyboard_controller import KeyboardController
 from core.os_controller import OSController
 from core.search_controller import SearchController
@@ -108,6 +108,7 @@ class VisionWorker(QObject):
         self._processed_fps = 0.0
         self._kb_window_geom: Optional[Tuple[int, int, int, int]] = None
         self._last_armed: Optional[bool] = None
+        self.keyboard_visible: bool = False
 
     def set_keyboard_geom(self, geom: Optional[Tuple[int, int, int, int]]) -> None:
         self._kb_window_geom = geom
@@ -158,27 +159,46 @@ class VisionWorker(QObject):
             # OS-level cursor + virtual-keyboard pointers are GATED on the
             # state-machine's armed flag, so the system is dormant until the
             # user explicitly arms it. Additionally, when ``cursor_point_only``
-            # is on, the cursor only follows the hand when the user is making
-            # the explicit "point" pose (index extended, others folded). This
-            # lets the user hold any other pose -- pinch, fist, open palm --
-            # without the cursor wandering off the target.
+            # is on, the cursor only follows the hand while the index finger
+            # is extended AND the hand is not in a "hold" pose (fist /
+            # five-finger cluster). The strict ``point`` pose (only-index)
+            # is unreliable in practice -- MediaPipe often misreads slightly
+            # bent middle/ring fingers as extended -- so we use the looser
+            # "index up" check instead. The cursor still freezes during a
+            # pinch hold (because pinching folds the index toward the thumb,
+            # so ``index_extended`` becomes false) and during fist / grab
+            # gestures, which is what the user wants for stable click /
+            # close / zoom interactions.
             should_move_cursor = (
                 self.cursor_enabled
                 and self.state_machine.armed
                 and gesture_frame.cursor_xy is not None
+                and not self.keyboard_visible
             )
-            if self.cursor_point_only:
-                should_move_cursor = should_move_cursor and (
-                    "point" in gesture_frame.labels
+            if self.cursor_point_only and hands:
+                primary = max(hands, key=lambda h: h.score)
+                index_extended = primary.is_finger_extended(INDEX_TIP, INDEX_PIP)
+                in_hold_pose = (
+                    "fist" in gesture_frame.labels
+                    or "five_finger_pinch" in gesture_frame.labels
                 )
+                should_move_cursor = (
+                    should_move_cursor and index_extended and not in_hold_pose
+                )
+            elif self.cursor_point_only and not hands:
+                should_move_cursor = False
             if should_move_cursor:
                 nx, ny = gesture_frame.cursor_xy
                 self.os_ctrl.move_cursor_normalised(nx, ny)
 
-            if self._kb_window_geom and hands and self.state_machine.armed:
-                pointers = self._compute_keyboard_pointers(hands, gesture_frame)
-                if pointers:
-                    self.pointersReady.emit(pointers)
+            # Virtual-keyboard pointers are NOT gated on `armed`: the
+            # keyboard is only visible when the user has explicitly opened
+            # it, so pointer input is already opt-in. Emit even an empty
+            # list so that the keyboard can release stale pinch state when
+            # hands leave its bounds.
+            if self._kb_window_geom is not None:
+                pointers = self._compute_keyboard_pointers(hands, gesture_frame) if hands else []
+                self.pointersReady.emit(pointers)
 
             if events:
                 self.eventsReady.emit(events)
@@ -251,6 +271,7 @@ class MainWindow(QMainWindow):
         self.dispatcher.on_confirmation_resolved = self._on_confirmation_resolved
         self.dispatcher.on_open_search = self.open_search_prompt
         self.dispatcher.on_toggle_keyboard = self.toggle_virtual_keyboard
+        self.dispatcher.on_open_keyboard_for_input = self.open_keyboard_for_input
 
         # Virtual keyboard window
         self.keyboard_window: Optional[VirtualKeyboardWindow] = None
@@ -488,6 +509,7 @@ class MainWindow(QMainWindow):
 
     def stop_pipeline(self) -> None:
         if self._worker:
+            self._worker.keyboard_visible = False
             self._worker.stop()
             self._worker = None
         if self._worker_thread:
@@ -624,17 +646,65 @@ class MainWindow(QMainWindow):
             self.keyboard_window.show()
             self.kb_btn.setChecked(True)
             self._update_kb_geom()
+            if self._worker:
+                self._worker.keyboard_visible = True
         else:
             self.keyboard_window.hide()
             self.kb_btn.setChecked(False)
             if self._worker:
                 self._worker.set_keyboard_geom(None)
+                self._worker.keyboard_visible = False
 
     def _update_kb_geom(self) -> None:
         if not (self.keyboard_window and self._worker):
             return
         geo = self.keyboard_window.geometry()
         self._worker.set_keyboard_geom((geo.x(), geo.y(), geo.width(), geo.height()))
+
+    def open_keyboard_for_input(self) -> None:
+        """Open (or re-anchor) the virtual keyboard near the focused app's
+        search bar / input field.
+
+        We don't have universal search-bar detection -- that would require
+        per-app UI Automation. As a robust heuristic the keyboard is placed
+        just below the foreground window's bottom edge so the search bar
+        (typically near the top of the window) stays visible while the user
+        types.
+        """
+        # Ensure the keyboard exists and is visible (idempotent open).
+        if self.keyboard_window is None or not self.keyboard_window.isVisible():
+            self.toggle_virtual_keyboard()
+        if self.keyboard_window is None:
+            return
+
+        screen = QApplication.primaryScreen().geometry()
+        kw = self.keyboard_window.width()
+        kh = self.keyboard_window.height()
+
+        target_x = (screen.width() - kw) // 2
+        target_y = screen.height() - kh - 80
+
+        rect = self.os_ctrl.foreground_window_rect()
+        if rect is not None:
+            wx, wy, ww, wh = rect
+            # Centre horizontally on the window; place just below it.
+            target_x = wx + (ww - kw) // 2
+            target_y = wy + wh + 8
+            # Clamp into the screen so the keyboard never lands off-screen.
+            target_x = max(0, min(target_x, screen.width() - kw))
+            if target_y + kh > screen.height():
+                # Window extends to the bottom of the screen -- overlap the
+                # bottom of the window instead of going off-screen.
+                target_y = max(0, screen.height() - kh - 8)
+
+        self.keyboard_window.move(target_x, target_y)
+        self.keyboard_window.raise_()
+        self._update_kb_geom()
+        if self._worker:
+            self._worker.keyboard_visible = True
+        self.log_action(
+            f"Keyboard anchored to: {self.os_ctrl.active_window_title() or '(foreground)'}"
+        )
 
     def moveEvent(self, ev):  # noqa: N802
         super().moveEvent(ev)

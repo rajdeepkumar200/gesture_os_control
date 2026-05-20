@@ -59,6 +59,7 @@ class ActionDispatcher:
         self.on_confirmation_resolved: Optional[UICallback] = None
         self.on_open_search: Optional[UICallback] = None
         self.on_toggle_keyboard: Optional[UICallback] = None
+        self.on_open_keyboard_for_input: Optional[UICallback] = None
 
         self._pending: Optional[PendingConfirmation] = None
 
@@ -75,6 +76,7 @@ class ActionDispatcher:
             "confirm": self._do_confirm,
             "cancel": self._do_cancel,
             "toggle_keyboard": self._do_toggle_keyboard,
+            "open_keyboard_for_input": self._do_open_keyboard_for_input,
             "noop": lambda _e: None,
         }
 
@@ -200,6 +202,17 @@ class ActionDispatcher:
         if self.on_toggle_keyboard:
             self.on_toggle_keyboard()
         self._log("Toggled virtual keyboard")
+
+    def _do_open_keyboard_for_input(self, _e: GestureEvent) -> None:
+        """Open the virtual keyboard, anchored to the active app's window.
+
+        Idempotent: if the keyboard is already open it stays open and is
+        just re-anchored. Used by the four-finger "typing" gesture so the
+        user can text into the focused search bar / input field.
+        """
+        if self.on_open_keyboard_for_input:
+            self.on_open_keyboard_for_input()
+        self._log("Virtual keyboard opened for text input")
 
     # -------------------------------------------------------- properties
     @property

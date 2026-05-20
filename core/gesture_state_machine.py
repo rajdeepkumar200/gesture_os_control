@@ -351,7 +351,7 @@ class GestureStateMachine:
             self._open_palm_started_at = None
 
         # Plain rising-edge gestures.
-        for name in ("thumbs_up", "peace", "four_finger_type"):
+        for name in ("thumbs_up", "peace", "four_finger_type", "clap"):
             active = self._is_majority(name)
             previously = self._active.get(name, False)
             if active and not previously and self._can_fire(name, now):

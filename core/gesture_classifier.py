@@ -54,6 +54,7 @@ class GestureClassifier:
         self._typing_history: Deque[Tuple[float, float]] = deque(maxlen=typing_motion_window)
         self._typing_min_osc = typing_motion_min_oscillations
         self._prev_two_hand_distance: Optional[float] = None
+        self._clap_history: Deque[float] = deque(maxlen=10)
 
     # ----------------------------------------------------------- helpers
     @staticmethod
@@ -124,6 +125,23 @@ class GestureClassifier:
         all_extended = all(h.extended_fingers()[1:])
         return all_extended and changes >= self._typing_min_osc and amplitude > 0.03
 
+    def _is_clap(self, hands: Sequence[Hand]) -> bool:
+        """Two hands come together rapidly (wrist distance drops sharply)."""
+        if len(hands) < 2:
+            self._clap_history.clear()
+            return False
+        a, b = hands[0], hands[1]
+        dist = (
+            (a.lm(WRIST).x - b.lm(WRIST).x) ** 2
+            + (a.lm(WRIST).y - b.lm(WRIST).y) ** 2
+        ) ** 0.5
+        self._clap_history.append(dist)
+        if len(self._clap_history) < 3:
+            return False
+        prev_max = max(list(self._clap_history)[:-1])
+        current = self._clap_history[-1]
+        return prev_max > 0.30 and current < 0.15
+
     # ------------------------------------------------------------ public
     def classify(self, hands: Sequence[Hand]) -> GestureFrame:
         frame = GestureFrame()
@@ -161,6 +179,9 @@ class GestureClassifier:
 
         if self._is_typing_motion(hands):
             frame.labels.append("four_finger_type")
+
+        if self._is_clap(hands):
+            frame.labels.append("clap")
 
         # Two-hand wrist distance is still surfaced for the status panel,
         # but two-hand zoom gestures have been replaced by single-hand

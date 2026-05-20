@@ -129,6 +129,24 @@ class OSController:
                 return ""
         return ""
 
+    def foreground_window_rect(self) -> Optional[Tuple[int, int, int, int]]:
+        """Return ``(x, y, w, h)`` of the foreground window, or ``None``.
+
+        Used by features that need to anchor an overlay (e.g. the virtual
+        keyboard) to whatever app the user is currently focused on.
+        """
+        if not _HAS_PYWIN32:
+            return None
+        try:
+            hwnd = win32gui.GetForegroundWindow()
+            if not hwnd:
+                return None
+            left, top, right, bottom = win32gui.GetWindowRect(hwnd)
+            return (left, top, max(0, right - left), max(0, bottom - top))
+        except Exception:
+            logger.debug("foreground_window_rect failed", exc_info=True)
+            return None
+
     # --------------------------------------------------------- launching
     def open_path(self, path: str | Path) -> bool:
         path = Path(path)

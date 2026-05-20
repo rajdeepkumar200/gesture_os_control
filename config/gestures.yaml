@@ -44,8 +44,14 @@ gestures:
   enabled: true
   cooldown_ms: 1500
   description: Peace sign toggles the virtual keyboard.
-- name: four_finger_type
-  action: open_search
+- name: clap
+  action: toggle_keyboard
   enabled: true
   cooldown_ms: 1500
-  description: Air-typing motion opens search overlay (disabled by default).
+  description: Two open palms clapping together toggles the virtual keyboard.
+- name: four_finger_type
+  action: open_keyboard_for_input
+  enabled: true
+  cooldown_ms: 1500
+  description: Air-typing motion (4 fingers wiggling) opens the virtual keyboard anchored
+    to the focused window's search bar.
